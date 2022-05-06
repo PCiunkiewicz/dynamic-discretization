@@ -1,4 +1,11 @@
+"""
+Author - Philip Ciunkiewicz
 
+This module provides discretization classes for
+both dynamic (as proposed by Fenton and Neil) and
+static strategies.
+"""
+from abc import ABC, abstractmethod
 from bisect import bisect_left
 
 import matplotlib.pyplot as plt
@@ -9,7 +16,84 @@ from scipy import stats
 from sklearn.preprocessing import KBinsDiscretizer
 
 
-class DynamicDiscretizer:
+class Discretizer(ABC):
+    """
+    Abstract base discretization class.
+    """
+    def __init__(self):
+        self.edges = None
+        self.intervals = None
+
+    def _compute_intervals(self):
+        """
+        Convenience method for computing the interval bounds
+        from the provided interval edges. Intervals are re-
+        computed whenever edges are introduced through splitting
+        or removed though merging.
+        """
+        self.intervals = [(x, self.edges[i+1])
+                          for i, x in enumerate(self.edges[:-1])]
+
+    def discretize(self, x):
+        """
+        Discretizes continuous values using bisection.
+
+        Params
+        ------
+        x: float|int
+            Continuous value to be discretized.
+
+        Returns
+        -------
+        interval: tuple
+            Corresponding discrete interval for `x`.
+        """
+        idx = bisect_left(self.edges, x)
+        return self.intervals[max(0, idx-1)]
+
+    def transform(self, data=None):
+        """
+        Transform data by applying discretization and
+        string conversion to values.
+
+        Params
+        ------
+        data: pandas.Series (optional)
+            Optional data to discretize, default uses self.X.
+
+        Returns
+        -------
+        data: pandas.Series
+            Discretized intervals corresponding to data.
+        """
+        if data is not None:
+            return data.apply(self.discretize).apply(self._stringify)
+        return self.X.apply(self.discretize).apply(self._stringify)
+
+    @abstractmethod
+    def _stringify(self, interval, ndigits=3):
+        """
+        Convenience method for representing an interval using
+        mathematical notation with a closed lower bound and
+        open upper bound.
+
+        Params
+        ------
+        interval: tuple
+            Interval edges of shape (2,).
+
+        ndigits: int (optional)
+            Number of significant digits for rounding values.
+
+        Returns
+        -------
+        interval: string
+            Interval bounds in mathematical notation.
+        """
+        pass
+
+
+class DynamicDiscretizer(Discretizer):
     """
     Dynamic Discretization class for Bayesian networks.
 
@@ -17,7 +101,6 @@ class DynamicDiscretizer:
     theoretic measures, specifically relative entropy
     error (special case of KL divergence).
     """
-
     def __init__(self, X, bins=4, edges=None, kde_kws={}):
         """
         Params
@@ -35,6 +118,8 @@ class DynamicDiscretizer:
         kde_kws: dict (optional)
             Keyword arguments to pass to scipy.stats.gaussian_kde.
         """
+        super().__init__()
+
         if edges:
             self.edges = list(edges)
         else:
@@ -45,18 +130,7 @@ class DynamicDiscretizer:
         self.errors = []
 
         self.initial = self.edges.copy()
-        self.intervals = None
         self._compute_intervals()
-
-    def _compute_intervals(self):
-        """
-        Convenience method for computing the interval bounds
-        from the provided interval edges. Intervals are re-
-        computed whenever edges are introduced through splitting
-        or removed though merging.
-        """
-        self.intervals = [(x, self.edges[i+1])
-                          for i, x in enumerate(self.edges[:-1])]
 
     def _compute_error(self, interval):
         """
@@ -195,42 +269,6 @@ class DynamicDiscretizer:
 
         return self
 
-    def discretize(self, x):
-        """
-        Discretizes continuous values using bisection.
-
-        Params
-        ------
-        x: float|int
-            Continuous value to be discretized.
-
-        Returns
-        -------
-        interval: tuple
-            Corresponding discrete interval for `x`.
-        """
-        idx = bisect_left(self.edges, x)
-        return self.intervals[max(0, idx-1)]
-
-    def transform(self, data=None):
-        """
-        Transform data by applying discretization and
-        string conversion to values.
-
-        Params
-        ------
-        data: pandas.Series (optional)
-            Optional data to discretize, default uses self.X.
-
-        Returns
-        -------
-        data: pandas.Series
-            Discretized intervals corresponding to data.
-        """
-        if data is not None:
-            return data.apply(self.discretize).apply(self._stringify)
-        return self.X.apply(self.discretize).apply(self._stringify)
-
     def visualize(self):
         """
         Plotting method for visualizing the initial and
@@ -277,7 +315,7 @@ class DynamicDiscretizer:
         )
 
 
-class StaticDiscretizer:
+class StaticDiscretizer(Discretizer):
     """
     Static Discretization class for Bayesian networks.
 
@@ -285,7 +323,6 @@ class StaticDiscretizer:
     and intervals available to the SKLearn KBinsDiscretizer
     class.
     """
-
     def __init__(self, X, bins=4, strategy='uniform'):
         """
         Params
@@ -299,24 +336,15 @@ class StaticDiscretizer:
         strategy: string (optional)
             One of 'uniform' | 'quantile' | 'kmeans'.
         """
+        super().__init__()
+
         self.disc = KBinsDiscretizer(bins, encode='ordinal', strategy=strategy)
         self.disc.fit(X.to_frame())
         self.edges = self.disc.bin_edges_[0]
 
         self.X = X.copy()
 
-        self.intervals = None
         self._compute_intervals()
-
-    def _compute_intervals(self):
-        """
-        Convenience method for computing the interval bounds
-        from the provided interval edges. Intervals are re-
-        computed whenever edges are introduced through splitting
-        or removed though merging.
-        """
-        self.intervals = [(x, self.edges[i+1])
-                          for i, x in enumerate(self.edges[:-1])]
 
     def _stringify(self, interval, ndigits=3):
         """
@@ -344,42 +372,6 @@ class StaticDiscretizer:
         elif interval == self.intervals[-1]:
             upper = 'inf)'
         return f'{lower}; {upper}'
-
-    def discretize(self, x):
-        """
-        Discretizes continuous values using bisection.
-
-        Params
-        ------
-        x: float|int
-            Continuous value to be discretized.
-
-        Returns
-        -------
-        interval: tuple
-            Corresponding discrete interval for `x`.
-        """
-        idx = bisect_left(self.edges, x)
-        return self.intervals[max(0, idx-1)]
-
-    def transform(self, data=None):
-        """
-        Transform data by applying discretization and
-        string conversion to values.
-
-        Params
-        ------
-        data: pandas.Series (optional)
-            Optional data to discretize, default uses self.X.
-
-        Returns
-        -------
-        data: pandas.Series
-            Discretized intervals corresponding to data.
-        """
-        if data is not None:
-            return data.apply(self.discretize).apply(self._stringify)
-        return self.X.apply(self.discretize).apply(self._stringify)
 
 
 def prepare_static(df, bins=5, strategy='uniform'):
