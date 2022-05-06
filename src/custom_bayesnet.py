@@ -1,3 +1,10 @@
+"""
+Author - Philip Ciunkiewicz
+
+This module provides various custom Bayesian
+network topologies using the PyAgrum library.
+"""
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
@@ -8,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 from pyAgrum.lib.bn2roc import __computepoints as computepoints
 
 
-class CustomBayesNet:
+class CustomBayesNet(ABC):
     """
     Custom wrapper class for PyAgrum for parameter-learning
     Bayesian networks.
@@ -138,6 +145,7 @@ class CustomBayesNet:
 
         return self
 
+    @abstractmethod
     def topology(self):
         """
         Network topology defined when subclassing CustomBayesNet.
@@ -150,21 +158,6 @@ class ToxicityBN(CustomBayesNet):
     Custom Bayesian network for predicting worsening normal
     tissue toxicity from the ACCEL clinical trial.
     """
-    def __init__(self, data, train_file='train.csv', test_file='test.csv'):
-        """
-        Params
-        ------
-        data: pandas.DataFrame
-            Dataset you are working with.
-
-        train_file: string (optional)
-            Path to training data for PyAgrum.
-
-        test_file: string (optional)
-            Path to testing data for PyAgrum.
-        """
-        super().__init__(data, train_file, test_file)
-
     def topology(self):
         """
         Network topology defined when subclassing CustomBayesNet.
@@ -195,21 +188,6 @@ class BreastCancerBN(CustomBayesNet):
     Custom Bayesian network for predicting malignant
     vs benign tumors for Wisconsis breast cancer data.
     """
-    def __init__(self, data, train_file='train_cancer.csv', test_file='test_cancer.csv'):
-        """
-        Params
-        ------
-        data: pandas.DataFrame
-            Dataset you are working with.
-
-        train_file: string (optional)
-            Path to training data for PyAgrum.
-
-        test_file: string (optional)
-            Path to testing data for PyAgrum.
-        """
-        super().__init__(data, train_file, test_file)
-
     def topology(self):
         """
         Network topology defined when subclassing CustomBayesNet.
@@ -244,21 +222,6 @@ class DiabetesBN(CustomBayesNet):
     Custom Bayesian network for predicting high severity
     diabetes disease progression for diabetes data.
     """
-    def __init__(self, data, train_file='train_diabetes.csv', test_file='test_diabetes.csv'):
-        """
-        Params
-        ------
-        data: pandas.DataFrame
-            Dataset you are working with.
-
-        train_file: string (optional)
-            Path to training data for PyAgrum.
-
-        test_file: string (optional)
-            Path to testing data for PyAgrum.
-        """
-        super().__init__(data, train_file, test_file)
-
     def topology(self):
         """
         Network topology defined when subclassing CustomBayesNet.
@@ -279,21 +242,6 @@ class IrisBN(CustomBayesNet):
     Custom Bayesian network for predicting species
     versicolor for iris data.
     """
-    def __init__(self, data, train_file='train_iris.csv', test_file='test_iris.csv'):
-        """
-        Params
-        ------
-        data: pandas.DataFrame
-            Dataset you are working with.
-
-        train_file: string (optional)
-            Path to training data for PyAgrum.
-
-        test_file: string (optional)
-            Path to testing data for PyAgrum.
-        """
-        super().__init__(data, train_file, test_file)
-
     def topology(self):
         """
         Network topology defined when subclassing CustomBayesNet.
